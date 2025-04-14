@@ -27,7 +27,8 @@ N_DOCUMENTOS = 3
 @st.cache_resource(show_spinner=False)
 def carregar_vector_db():
     embedding_engine = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
-    vector_db = Chroma(persist_directory=PERSIST_DIRECTORY, embedding_function=embedding_engine)
+    #vector_db = Chroma(persist_directory=PERSIST_DIRECTORY, embedding_function=embedding_engine)
+    vector_db = Chroma(persist_directory=PERSIST_DIRECTORY, embedding_function=embedding_engine, collection_name="documentos")
     return vector_db
 
 vector_db = carregar_vector_db()
