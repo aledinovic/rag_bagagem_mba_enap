@@ -112,14 +112,15 @@ rag_chain = (
 pergunta_usuario = st.text_input("Digite sua pergunta:", st.session_state.pergunta)
 
 if st.button("Perguntar"):
-    if pergunta_usuario.strip():
-        pergunta_usuario = str(pergunta_usuario).strip()  # ⬅️ CORREÇÃO CRÍTICA AQUI
-        with st.spinner("Buscando resposta..."):
-            resposta = rag_chain.invoke({"question": pergunta_usuario})
-            st.session_state.resposta = resposta
-            st.session_state.pergunta = pergunta_usuario
+    pergunta_formatada = str(pergunta_usuario).strip()
+
+    if not pergunta_formatada:
+        st.warning("Por favor, digite uma pergunta válida.")
     else:
-        st.warning("Por favor, digite uma pergunta.")
+        with st.spinner("Buscando resposta..."):
+            resposta = rag_chain.invoke({"question": pergunta_formatada})
+            st.session_state.resposta = resposta
+            st.session_state.pergunta = pergunta_formatada
 
 # -------------------------
 # EXIBIR RESPOSTA E FEEDBACK
