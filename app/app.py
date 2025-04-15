@@ -1,37 +1,42 @@
 import streamlit as st
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
+import pandas as pd
+from datetime import datetime
+import json
+from io import StringIO
+
 from langchain_community.vectorstores import FAISS
-from langchain import hub
-from langchain_openai import ChatOpenAI
-from langchain_core.runnables import RunnablePassthrough
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.prompts import PromptTemplate
+from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
-from dotenv import load_dotenv
-import os
+from langchain_openai import ChatOpenAI
 
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Configurações básicas do Streamlit
-st.set_page_config(page_title="RAG - Guia do Viajante", page_icon="✈️")
+# -------------------------
+# CONFIGURAÇÕES
+# -------------------------
+
+st.set_page_config(page_title="RAG - Bagagem Desacompanhada", page_icon="🛄")
 st.title("Assistente sobre Bagagem Desacompanhada 🛄")
-st.write("Faça sua pergunta sobre bagagem desacompanhada.")
+st.write("Faça sua pergunta sobre bagagem desacompanhada e avalie a resposta.")
+
+PERSIST_DIRECTORY = "faiss_db"
+N_DOCUMENTOS = 3
+
+# -------------------------
+# CONTROLE DE ESTADO
+# -------------------------
 
 if "resposta" not in st.session_state:
     st.session_state.resposta = ""
 if "pergunta" not in st.session_state:
     st.session_state.pergunta = ""
 
-# Carregar variáveis de ambiente (OPENAI_API_KEY)
-load_dotenv()
-#OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
-OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
-
-# Definir constantes
-PERSIST_DIRECTORY = "./faiss_db"
-N_DOCUMENTOS = 3
+# -------------------------
+# CARREGAR FAISS VETORIAL
+# -------------------------
 
 @st.cache_resource(show_spinner=False)
 def carregar_vector_db():
@@ -42,7 +47,14 @@ def carregar_vector_db():
 vector_db = carregar_vector_db()
 
 # -------------------------
-# FUNÇÃO: registrar feedback no Google Sheets
+# FORMATADOR DE CONTEXTO
+# -------------------------
+
+def format_docs(documentos):
+    return "\n\n".join(doc.page_content for doc in documentos)
+
+# -------------------------
+# REGISTRAR FEEDBACK NO GOOGLE SHEETS
 # -------------------------
 
 def registrar_feedback_sheets(pergunta, resposta, avaliacao):
@@ -56,18 +68,13 @@ def registrar_feedback_sheets(pergunta, resposta, avaliacao):
     nova_linha = [data_hora, pergunta, resposta, avaliacao]
     sheet.append_row(nova_linha)
 
-
-
-# Função para formatar documentos
-def format_docs(documentos):
-    return "\n\n".join(documento.page_content for documento in documentos)
-
-# Construir pipeline RAG
-llm = ChatOpenAI(openai_api_key=OPENAI_API_KEY, model="gpt-4o-mini")
-#prompt = hub.pull("rlm/rag-prompt")
+# -------------------------
+# PROMPT MANUAL
+# -------------------------
 
 prompt = PromptTemplate.from_template("""
-Use o contexto abaixo para responder à pergunta. Se a resposta não estiver contida no contexto, diga "Desculpe, não sei responder com base nas informações disponíveis."
+Use o contexto abaixo para responder à pergunta. 
+Se a resposta não estiver no contexto, diga "Desculpe, não sei responder com base nas informações disponíveis."
 
 Contexto:
 {context}
@@ -76,23 +83,39 @@ Pergunta:
 {question}
 """)
 
-rag = (
+# -------------------------
+# PIPELINE RAG FUNCIONAL
+# -------------------------
+
+llm = ChatOpenAI(
+    model="gpt-4o",
+    temperature=0,
+    openai_api_key=st.secrets["OPENAI_API_KEY"]
+)
+
+retriever = vector_db.as_retriever(search_kwargs={"k": N_DOCUMENTOS})
+
+rag_chain = (
     {
-        "question": RunnablePassthrough(),
-        "context": vector_db.as_retriever(k=N_DOCUMENTOS) | format_docs
+        "context": retriever | format_docs,
+        "question": RunnablePassthrough()
     }
     | prompt
     | llm
     | StrOutputParser()
 )
 
-# Campo para digitar pergunta
+# -------------------------
+# INTERFACE USUÁRIO
+# -------------------------
+
 pergunta_usuario = st.text_input("Digite sua pergunta:", st.session_state.pergunta)
 
 if st.button("Perguntar"):
     if pergunta_usuario.strip():
         with st.spinner("Buscando resposta..."):
-            st.session_state.resposta = rag_chain({"question": pergunta_usuario})
+            resposta = rag_chain.invoke({"question": pergunta_usuario})
+            st.session_state.resposta = resposta
             st.session_state.pergunta = pergunta_usuario
     else:
         st.warning("Por favor, digite uma pergunta.")
