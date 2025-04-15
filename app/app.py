@@ -117,10 +117,19 @@ if st.button("Perguntar"):
     if not pergunta_formatada:
         st.warning("Por favor, digite uma pergunta válida.")
     else:
+        # Debug: exibir tipo e valor da pergunta (remova depois de testar)
+        st.write(f"**DEBUG**: Tipo da pergunta: {type(pergunta_formatada)}, Valor: {repr(pergunta_formatada)}")
+
         with st.spinner("Buscando resposta..."):
-            resposta = rag_chain.invoke({"question": pergunta_formatada})
-            st.session_state.resposta = resposta
-            st.session_state.pergunta = pergunta_formatada
+            try:
+                resposta = rag_chain.invoke({"question": pergunta_formatada})
+                st.session_state.resposta = resposta
+                st.session_state.pergunta = pergunta_formatada
+            except Exception as e:
+                st.error("Falha ao processar a pergunta. Tente reformular a frase ou remover caracteres especiais.")
+                st.error(f"Detalhes do erro: {e}")
+                # Se quiser interromper o app aqui:
+                # st.stop()
 
 # -------------------------
 # EXIBIR RESPOSTA E FEEDBACK
