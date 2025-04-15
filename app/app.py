@@ -81,7 +81,7 @@ pergunta_usuario = st.text_input("Digite sua pergunta:", st.session_state.pergun
 if st.button("Perguntar"):
     if pergunta_usuario.strip():
         with st.spinner("Buscando resposta..."):
-            st.session_state.resposta = rag_chain.invoke(pergunta_usuario)
+            st.session_state.resposta = rag_chain({"question": pergunta_usuario})
             st.session_state.pergunta = pergunta_usuario
     else:
         st.warning("Por favor, digite uma pergunta.")
