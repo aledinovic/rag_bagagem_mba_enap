@@ -8,3 +8,5 @@ faiss-cpu
 sentence-transformers
 python-dotenv
 pypdf
+gspread
+oauth2client
