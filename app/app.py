@@ -2,7 +2,7 @@ import streamlit as st
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain import hub
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import RunnablePassthrough
@@ -21,14 +21,13 @@ load_dotenv()
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
 # Definir constantes
-PERSIST_DIRECTORY = "./chroma_db"
+PERSIST_DIRECTORY = "./faiss_db"
 N_DOCUMENTOS = 3
 
 @st.cache_resource(show_spinner=False)
 def carregar_vector_db():
     embedding_engine = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
-    #vector_db = Chroma(persist_directory=PERSIST_DIRECTORY, embedding_function=embedding_engine)
-    vector_db = Chroma(persist_directory=PERSIST_DIRECTORY, embedding_function=embedding_engine, collection_name="documentos")
+    vector_db = FAISS.load_local(PERSIST_DIRECTORY, embedding_engine, allow_dangerous_deserialization=True)
     return vector_db
 
 vector_db = carregar_vector_db()
