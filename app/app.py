@@ -113,6 +113,7 @@ pergunta_usuario = st.text_input("Digite sua pergunta:", st.session_state.pergun
 
 if st.button("Perguntar"):
     if pergunta_usuario.strip():
+        pergunta_usuario = str(pergunta_usuario).strip()  # ⬅️ CORREÇÃO CRÍTICA AQUI
         with st.spinner("Buscando resposta..."):
             resposta = rag_chain.invoke({"question": pergunta_usuario})
             st.session_state.resposta = resposta
