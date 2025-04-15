@@ -6,6 +6,7 @@ from langchain_community.vectorstores import FAISS
 from langchain import hub
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import RunnablePassthrough
+from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 import os
@@ -63,7 +64,17 @@ def format_docs(documentos):
 
 # Construir pipeline RAG
 llm = ChatOpenAI(openai_api_key=OPENAI_API_KEY, model="gpt-4o-mini")
-prompt = hub.pull("rlm/rag-prompt")
+#prompt = hub.pull("rlm/rag-prompt")
+
+prompt = PromptTemplate.from_template("""
+Use o contexto abaixo para responder à pergunta. Se a resposta não estiver contida no contexto, diga "Desculpe, não sei responder com base nas informações disponíveis."
+
+Contexto:
+{context}
+
+Pergunta:
+{question}
+""")
 
 rag = (
     {
