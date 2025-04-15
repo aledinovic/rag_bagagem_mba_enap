@@ -4,7 +4,7 @@ langchain-openai
 langchain-community
 langchain-text-splitters
 langchain-huggingface
-chromadb==1.0.4
+faiss-cpu
 sentence-transformers
 python-dotenv
 pypdf
