@@ -10,10 +10,18 @@ from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
 import os
 
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+
 # Configurações básicas do Streamlit
 st.set_page_config(page_title="RAG - Guia do Viajante", page_icon="✈️")
 st.title("Assistente sobre Bagagem Desacompanhada 🛄")
 st.write("Faça sua pergunta sobre bagagem desacompanhada.")
+
+if "resposta" not in st.session_state:
+    st.session_state.resposta = ""
+if "pergunta" not in st.session_state:
+    st.session_state.pergunta = ""
 
 # Carregar variáveis de ambiente (OPENAI_API_KEY)
 load_dotenv()
@@ -31,6 +39,23 @@ def carregar_vector_db():
     return vector_db
 
 vector_db = carregar_vector_db()
+
+# -------------------------
+# FUNÇÃO: registrar feedback no Google Sheets
+# -------------------------
+
+def registrar_feedback_sheets(pergunta, resposta, avaliacao):
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds_dict = json.loads(st.secrets["GOOGLE_SERVICE_ACCOUNT_JSON"])
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    client = gspread.authorize(creds)
+    sheet = client.open("Feedback RAG Bagagem").sheet1
+
+    data_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    nova_linha = [data_hora, pergunta, resposta, avaliacao]
+    sheet.append_row(nova_linha)
+
+
 
 # Função para formatar documentos
 def format_docs(documentos):
@@ -51,26 +76,44 @@ rag = (
 )
 
 # Campo para digitar pergunta
-pergunta_usuario = st.text_input("Digite sua pergunta:", "")
+pergunta_usuario = st.text_input("Digite sua pergunta:", st.session_state.pergunta)
 
-# Botão de envio
 if st.button("Perguntar"):
-    if pergunta_usuario:
+    if pergunta_usuario.strip():
         with st.spinner("Buscando resposta..."):
-            resposta = rag.invoke(pergunta_usuario)
-        st.markdown("### Resposta:")
-        st.write(resposta)
-
-        # Avaliação simples (feedback)
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("👍 Correto"):
-                feedback = "Correto"
-                st.success("Feedback registrado: 👍 Correto")
-        with col2:
-            if st.button("👎 Incorreto"):
-                feedback = "Incorreto"
-                st.error("Feedback registrado: 👎 Incorreto")
+            st.session_state.resposta = rag_chain.invoke(pergunta_usuario)
+            st.session_state.pergunta = pergunta_usuario
     else:
         st.warning("Por favor, digite uma pergunta.")
 
+# -------------------------
+# EXIBIR RESPOSTA E FEEDBACK
+# -------------------------
+
+if st.session_state.resposta:
+    st.markdown("### Resposta:")
+    st.write(st.session_state.resposta)
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("👍 Correto"):
+            registrar_feedback_sheets(
+                st.session_state.pergunta,
+                st.session_state.resposta,
+                "correto"
+            )
+            st.success("Feedback registrado: 👍 Correto")
+            st.session_state.resposta = ""
+            st.session_state.pergunta = ""
+
+    with col2:
+        if st.button("👎 Incorreto"):
+            registrar_feedback_sheets(
+                st.session_state.pergunta,
+                st.session_state.resposta,
+                "incorreto"
+            )
+            st.warning("Feedback registrado: 👎 Incorreto")
+            st.session_state.resposta = ""
+            st.session_state.pergunta = ""
