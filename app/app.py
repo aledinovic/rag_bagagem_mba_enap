@@ -34,6 +34,7 @@ PERSIST_DIRECTORY = "faiss_db"
 N_DOCUMENTOS = 3
 
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+hf_token = st.secrets["HUGGINGFACE_TOKEN"]
 
 # -------------------------
 # CARREGAR FAISS VETORIAL
@@ -41,7 +42,7 @@ OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
 @st.cache_resource(show_spinner=False)
 def carregar_vector_db():
-    embedding_engine = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+    embedding_engine = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2",huggingfacehub_api_token=hf_token)
     vector_db = FAISS.load_local(PERSIST_DIRECTORY, embedding_engine, allow_dangerous_deserialization=True)
     return vector_db
 
