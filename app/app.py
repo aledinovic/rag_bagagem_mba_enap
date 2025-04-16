@@ -25,14 +25,7 @@ st.write("Faça sua pergunta sobre bagagem desacompanhada e avalie a resposta.")
 PERSIST_DIRECTORY = "faiss_db"
 N_DOCUMENTOS = 3
 
-# -------------------------
-# CONTROLE DE ESTADO
-# -------------------------
-
-if "resposta" not in st.session_state:
-    st.session_state.resposta = ""
-if "pergunta" not in st.session_state:
-    st.session_state.pergunta = ""
+OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
 # -------------------------
 # CARREGAR FAISS VETORIAL
@@ -53,108 +46,40 @@ vector_db = carregar_vector_db()
 def format_docs(documentos):
     return "\n\n".join(doc.page_content for doc in documentos)
 
-# -------------------------
-# REGISTRAR FEEDBACK NO GOOGLE SHEETS
-# -------------------------
+# Construir pipeline RAG
+llm = ChatOpenAI(openai_api_key=OPENAI_API_KEY, model="gpt-4o-mini")
+prompt = hub.pull("rlm/rag-prompt")
 
-def registrar_feedback_sheets(pergunta, resposta, avaliacao):
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds_dict = json.loads(st.secrets["GOOGLE_SERVICE_ACCOUNT_JSON"])
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-    client = gspread.authorize(creds)
-    sheet = client.open("Feedback RAG Bagagem").sheet1
-
-    data_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    nova_linha = [data_hora, pergunta, resposta, avaliacao]
-    sheet.append_row(nova_linha)
-
-# -------------------------
-# PROMPT MANUAL
-# -------------------------
-
-prompt = PromptTemplate.from_template("""
-You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
-Question: {question} 
-Context: {context} 
-Answer:
-""")
-
-# -------------------------
-# PIPELINE RAG FUNCIONAL
-# -------------------------
-
-llm = ChatOpenAI(
-    model="gpt-4o",
-    temperature=0,
-    openai_api_key=st.secrets["OPENAI_API_KEY"]
-)
-
-retriever = vector_db.as_retriever(search_kwargs={"k": N_DOCUMENTOS})
-
-rag_chain = (
+rag = (
     {
-        "context": retriever | format_docs,
-        "question": RunnablePassthrough()
+        "question": RunnablePassthrough(),
+        "context": vector_db.as_retriever(k=N_DOCUMENTOS) | format_docs
     }
     | prompt
     | llm
     | StrOutputParser()
 )
 
-# -------------------------
-# INTERFACE USUÁRIO
-# -------------------------
+# Campo para digitar pergunta
+pergunta_usuario = st.text_input("Digite sua pergunta:", "")
 
-pergunta_usuario = st.text_input("Digite sua pergunta:", st.session_state.pergunta)
-
+# Botão de envio
 if st.button("Perguntar"):
-    pergunta_formatada = str(pergunta_usuario).strip()
-
-    if not pergunta_formatada:
-        st.warning("Por favor, digite uma pergunta válida.")
-    else:
-        # Debug: exibir tipo e valor da pergunta (remova depois de testar)
-        st.write(f"**DEBUG**: Tipo da pergunta: {type(pergunta_formatada)}, Valor: {repr(pergunta_formatada)}")
-
+    if pergunta_usuario:
         with st.spinner("Buscando resposta..."):
-            try:
-                resposta = rag_chain.invoke({"question": pergunta_formatada})
-                st.session_state.resposta = resposta
-                st.session_state.pergunta = pergunta_formatada
-            except Exception as e:
-                st.error("Falha ao processar a pergunta. Tente reformular a frase ou remover caracteres especiais.")
-                st.error(f"Detalhes do erro: {e}")
-                # Se quiser interromper o app aqui:
-                # st.stop()
+            resposta = rag.invoke(pergunta_usuario)
+        st.markdown("### Resposta:")
+        st.write(resposta)
 
-# -------------------------
-# EXIBIR RESPOSTA E FEEDBACK
-# -------------------------
-
-if st.session_state.resposta:
-    st.markdown("### Resposta:")
-    st.write(st.session_state.resposta)
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("👍 Correto"):
-            registrar_feedback_sheets(
-                st.session_state.pergunta,
-                st.session_state.resposta,
-                "correto"
-            )
-            st.success("Feedback registrado: 👍 Correto")
-            st.session_state.resposta = ""
-            st.session_state.pergunta = ""
-
-    with col2:
-        if st.button("👎 Incorreto"):
-            registrar_feedback_sheets(
-                st.session_state.pergunta,
-                st.session_state.resposta,
-                "incorreto"
-            )
-            st.warning("Feedback registrado: 👎 Incorreto")
-            st.session_state.resposta = ""
-            st.session_state.pergunta = ""
+        # Avaliação simples (feedback)
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("👍 Correto"):
+                feedback = "Correto"
+                st.success("Feedback registrado: 👍 Correto")
+        with col2:
+            if st.button("👎 Incorreto"):
+                feedback = "Incorreto"
+                st.error("Feedback registrado: 👎 Incorreto")
+    else:
+        st.warning("Por favor, digite uma pergunta.")
