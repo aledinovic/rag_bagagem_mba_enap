@@ -85,9 +85,11 @@ if st.button("Perguntar"):
             if st.button("👍 Correto"):
                 feedback = "Correto"
                 st.success("Feedback registrado: 👍 Correto")
+                st.rerun()
         with col2:
             if st.button("👎 Incorreto"):
                 feedback = "Incorreto"
                 st.error("Feedback registrado: 👎 Incorreto")
+                st.rerun()
     else:
         st.warning("Por favor, digite uma pergunta.")
