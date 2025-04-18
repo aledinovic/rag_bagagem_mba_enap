@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import json
+import torch
 from io import StringIO
 
 from langchain_community.vectorstores import FAISS
