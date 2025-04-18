@@ -27,7 +27,8 @@ from oauth2client.service_account import ServiceAccountCredentials
 # -------------------------
 # CONFIGURAÇÕES
 # -------------------------
-torch.classes.__path__ = []
+#torch.classes.__path__ = []
+torch.classes.__path__ = [os.path.join(torch.__path__[0], torch.classes.__file__)] 
 
 st.set_page_config(page_title="RAG - Bagagem Desacompanhada", page_icon="🛄")
 st.title("Assistente sobre Bagagem Desacompanhada 🛄")
