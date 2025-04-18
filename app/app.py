@@ -18,6 +18,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from dotenv import load_dotenv
+from langchain.prompts import PromptTemplate
 
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -57,12 +58,29 @@ def format_docs(documentos):
 
 # Construir pipeline RAG
 llm = ChatOpenAI(openai_api_key=OPENAI_API_KEY, model="gpt-4o-mini")
-prompt = hub.pull("rlm/rag-prompt")
+
+prompt_template = """
+Você é um assistente especializado em regras e procedimentos sobre bagagem desacompanhada, com base em documentos oficiais. Sua tarefa é fornecer respostas precisas, concisas e fáceis de entender, utilizando os pedaços do contexto fornecido. Se voce não souber a resposta, informe que a resposta não pode ser fornecida com base nos dados disponíveis.
+
+**Contexto**:  
+{context}
+
+**Pergunta**:  
+{question}
+
+**Resposta**:  
+"""
+
+prompt = PromptTemplate(
+    template=prompt_template,
+    input_variables=["context", "question"]
+)
 
 rag = (
     {
         "question": RunnablePassthrough(),
-        "context": vector_db.as_retriever(k=N_DOCUMENTOS) | format_docs
+        "context": vector_db.as_retriever(k = n_documentos) 
+                    | format_docs
     }
     | prompt
     | llm
