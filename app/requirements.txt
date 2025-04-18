@@ -10,5 +10,5 @@ python-dotenv
 pypdf
 gspread
 oauth2client
-torch
+torch==2.1.2+cpu
 huggingface_hub[hf_xet]
