@@ -82,7 +82,7 @@ prompt = PromptTemplate(
 rag = (
     {
         "question": RunnablePassthrough(),
-        "context": vector_db.as_retriever(k = n_documentos) 
+        "context": vector_db.as_retriever(k = N_DOCUMENTOS) 
                     | format_docs
     }
     | prompt
