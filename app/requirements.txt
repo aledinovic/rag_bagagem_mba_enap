@@ -11,3 +11,4 @@ pypdf
 gspread
 oauth2client
 torch
+huggingface_hub[hf_xet]
