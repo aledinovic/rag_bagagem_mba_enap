@@ -44,6 +44,7 @@ hf_token = st.secrets["HUGGINGFACE_TOKEN"]
 @st.cache_resource(show_spinner=False)
 def carregar_vector_db():
     embedding_engine = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+    print(type(embedding_engine))
     vector_db = FAISS.load_local(PERSIST_DIRECTORY, embedding_engine, allow_dangerous_deserialization=True)
     return vector_db
 
